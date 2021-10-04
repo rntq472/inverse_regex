@@ -3,8 +3,6 @@
 import regex
 from itertools import groupby
 from functools import singledispatch
-import pandas as pd
-import numpy as np
 
 
 @singledispatch
@@ -35,17 +33,25 @@ def _(x, **args):
 def _(x, **args):
     return(tuple(inverse_regex(list(x), **args)))
 
-@inverse_regex.register(pd.DataFrame)
-def _(x, **args):
-    return('Hello')#tuple(inverse_regex(list(x), **args)))
+try:
+    import pandas as pd
+    @inverse_regex.register(pd.DataFrame)
+    def _(x, **args):
+        pass ## TODO
+except ImportError as err:
+    print('Cannot process input:', err)
 
-@inverse_regex.register(np.ndarray)
-def _(x, **args):
-    return('asdf')#tuple(inverse_regex(list(x), **args)))
+try:
+    import numpy as np
+    @inverse_regex.register(np.ndarray)
+    def _(x, **args):
+        pass ## TODO
+except ImportError as err:
+    print('Cannot process input:', err)
 
 @inverse_regex.register(list)
 def _(x,
-      numbers_to_keep = [2, 3, 4, 5, 10],
+      numbers_to_keep = (2, 3, 4, 5, 10),
       combine_cases = False,
       combine_alphanumeric = False,
       combine_punctuation = False,
@@ -55,7 +61,7 @@ def _(x,
       enclose = False):
     
     if isinstance(numbers_to_keep, (int)):
-        numbers_to_keep = [numbers_to_keep]
+        numbers_to_keep = (numbers_to_keep,)
     
     out = ['']*len(x)
     
@@ -73,7 +79,7 @@ def _(x,
             continue
         
         if not combine_punctuation and escape_punctuation:
-            print('hello') ##############################
+            pass ## TODO
         
         if isinstance(item, (int, float, complex)):
             item = str(item)
