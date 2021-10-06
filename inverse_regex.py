@@ -25,10 +25,6 @@ def _(x, **args):
 def _(x, **args):
     return(inverse_regex(str(x), **args))
 
-@inverse_regex.register(str)
-def _(x, **args):
-    return(inverse_regex([x], **args)[0])
-
 @inverse_regex.register(tuple)
 def _(x, **args):
     return(tuple(inverse_regex(list(x), **args)))
@@ -38,18 +34,22 @@ try:
     @inverse_regex.register(pd.DataFrame)
     def _(x, **args):
         pass ## TODO
-except ImportError as err:
-    print('Cannot process input:', err)
+except:
+    pass
 
 try:
     import numpy as np
     @inverse_regex.register(np.ndarray)
     def _(x, **args):
         pass ## TODO
-except ImportError as err:
-    print('Cannot process input:', err)
+except:
+    pass
 
 @inverse_regex.register(list)
+def _(x, **args):
+    return([inverse_regex(y, **args) for y in x])
+
+@inverse_regex.register(str)
 def _(x,
       numbers_to_keep = (2, 3, 4, 5, 10),
       combine_cases = False,
@@ -63,7 +63,7 @@ def _(x,
     if isinstance(numbers_to_keep, (int)):
         numbers_to_keep = (numbers_to_keep,)
     
-    out = ['']*len(x)
+    out = list(x)
     
     lower = regex.compile('[[:lower:]]')
     upper = regex.compile('[[:upper:]]')
@@ -73,66 +73,54 @@ def _(x,
     punct = regex.compile('[[:punct:]]')
     space = regex.compile('[[:space:]]')
     
-    for index, item in enumerate(x):
-        
-        if item is None:
-            continue
-        
-        if not combine_punctuation and escape_punctuation:
-            pass ## TODO
-        
-        if isinstance(item, (int, float, complex)):
-            item = str(item)
-        
-        out[index] = list(item)
-        
-        if combine_alphanumeric:
-            iterator = alnum.finditer(item)
-            for match in iterator:
-                out[index][match.span()[0]] = r"[[:alnum:]]"
-        else:
-            if combine_cases:
-                iterator = alpha.finditer(item)
-                for match in iterator:
-                    out[index][match.span()[0]] = r"[[:alpha:]]"
-                
-                iterator = digit.finditer(item)
-                for match in iterator:
-                    out[index][match.span()[0]] = r"[[:digit:]]"
-            else:
-                iterator = upper.finditer(item)
-                for match in iterator:
-                    out[index][match.span()[0]] = r"[[:upper:]]"
-                
-                iterator = lower.finditer(item)
-                for match in iterator:
-                    out[index][match.span()[0]] = r"[[:lower:]]"
-                
-                iterator = digit.finditer(item)
-                for match in iterator:
-                    out[index][match.span()[0]] = r"[[:digit:]]"
-        
-        if combine_space:
-            iterator = space.finditer(item)
-            for match in iterator:
-                out[index][match.span()[0]] = r"[[:space:]]"
-        
-        if combine_punctuation:
-            iterator = punct.finditer(item)
-            for match in iterator:
-                out[index][match.span()[0]] = r"[[:punct:]]"
-        
-        ## https://stackoverflow.com/questions/43424729/how-to-find-run-length-encoding-in-python
-        rle = [[k, sum(1 for i in g)] for k,g in groupby(out[index])]
-        
-        for ii, rr in enumerate(rle):
-            if rr[1] in numbers_to_keep:
-                rle[ii][1] = "{" + str(rr[1]) + "}"
-            elif rr[1] == 1:
-                rle[ii][1] = ""
-            else:
-                rle[ii][1] = "+"
-        
-        out[index] = sep.join([i + j for i,j in rle])
+    if not combine_punctuation and escape_punctuation:
+        pass ## TODO
     
-    return(out)
+    if combine_alphanumeric:
+        iterator = alnum.finditer(x)
+        for match in iterator:
+            out[match.span()[0]] = r"[[:alnum:]]"
+    else:
+        if combine_cases:
+            iterator = alpha.finditer(x)
+            for match in iterator:
+                out[match.span()[0]] = r"[[:alpha:]]"
+            
+            iterator = digit.finditer(x)
+            for match in iterator:
+                out[match.span()[0]] = r"[[:digit:]]"
+        else:
+            iterator = upper.finditer(x)
+            for match in iterator:
+                out[match.span()[0]] = r"[[:upper:]]"
+            
+            iterator = lower.finditer(x)
+            for match in iterator:
+                out[match.span()[0]] = r"[[:lower:]]"
+                
+            iterator = digit.finditer(x)
+            for match in iterator:
+                out[match.span()[0]] = r"[[:digit:]]"
+    
+    iterator = space.finditer(x)
+    for match in iterator:
+        if combine_space:
+            out[match.span()[0]] = r"[[:space:]]"
+    
+    iterator = punct.finditer(x)
+    for match in iterator:
+        if combine_punctuation:
+            out[match.span()[0]] = r"[[:punct:]]"
+    
+    ## https://stackoverflow.com/questions/43424729/how-to-find-run-length-encoding-in-python
+    rle = [[k, sum(1 for i in g)] for k,g in groupby(out)]
+    
+    for ii, rr in enumerate(rle):
+        if rr[1] in numbers_to_keep:
+            rle[ii][1] = "{" + str(rr[1]) + "}"
+        elif rr[1] == 1:
+            rle[ii][1] = ""
+        else:
+            rle[ii][1] = "+"
+    
+    return(sep.join([i + j for i,j in rle]))
