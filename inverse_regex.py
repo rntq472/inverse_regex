@@ -92,8 +92,11 @@ def _(x,
       combine_punctuation = False,
       combine_space = False,
       sep = '',
-      escape_punctuation = False,
+      escape = False,
       enclose = False):
+    
+    if numbers_to_keep is None:
+        numbers_to_keep = ()
     
     if isinstance(numbers_to_keep, (int)):
         numbers_to_keep = (numbers_to_keep,)
@@ -107,9 +110,6 @@ def _(x,
     alnum = regex.compile('[[:alnum:]]')
     punct = regex.compile('[[:punct:]]')
     space = regex.compile('[[:space:]]')
-    
-    if not combine_punctuation and escape_punctuation:
-        pass ## TODO
     
     if combine_alphanumeric:
         iterator = alnum.finditer(x)
@@ -158,4 +158,12 @@ def _(x,
         else:
             rle[ii][1] = "+"
     
-    return(sep.join([i + j for i,j in rle]))
+    joined = sep.join([i + j for i,j in rle])
+    
+    if escape:
+        joined = regex.escape(joined)
+    
+    if enclose:
+        joined = '^' + joined + '$'
+    
+    return(joined)
