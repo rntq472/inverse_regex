@@ -7,10 +7,60 @@ from functools import singledispatch
 
 @singledispatch
 def inverse_regex(x, **args):
+    """Reverse Engineers a Regular Expression Pattern to Represent the Input Object
+    
+    Deconstructs the input into collections of letters, digits, punctuation, and
+    spaces that represent a regex pattern consistent with that input.
+    
+    Args:
+        x : The input object to derive a regex pattern for. Can be of type bool,
+            int, float, complex, str tuple, list, numpy.ndarray, pandas.Series,
+            or pandas.DataFrame.
+        numbers_to_keep (tuple): Tuple of numbers giving the length for which
+                                 elements repeated that many times should be
+                                 counted explicitly (e.g. "[[:digit:]]\{5\}").
+                                 Repeat sequences not included will be coded with
+                                 a "+" (e.g. "[[:digit:]]+"). Defaults to
+                                 (2, 3, 4, 5, 10). Set to None to have all runs
+                                 coded as "+" and set to tuple(range(0, max_chars))
+                                 to have the length specified for all repeated
+                                 values. If one is included then all unique patterns
+                                 with be counted as "{1}"; if it is not then the
+                                 "\{1\}" is left off.
+        combine_cases (bool): Flag indicating whether to combine upper
+                              lower cases as [[:alpha:]]. Defaults to False.
+        combine_alphanumeric (bool): Flag indicating whether to combine
+                                     alphabetic characters and digits as
+                                     [[:alnum:]]. Defaults to False.
+        combine_punctuation (bool): Flag indicating whether to combine
+                                    punctuation characters as [[:punct:]].
+                                    Defaults to False.
+        combine_space (bool): Flag indicating whether to combine space
+                              characters as [[:space:]]. Defaults to False.
+        sep (str): Value used to separate the identified regex patterns.
+                   Defaults to an empty string.
+        escape_punctuation (bool): Flag indicating whether to escape any
+                                   puncuation characters using regex.escape.
+                                   Only used if combine_punctuation is False.
+                                   Defaults to False.
+        enclose (bool): Flag indicating whether to surround the returned
+                        values with "^" and "$" for exact regex patterns.
+                        Defaults to False.
+    
+    Returns:
+        A set of regex patterns that match the input data. These patterns will
+        either be strings or the same type as the input object if it was a
+        list, tuple, numpy.ndarray, pandas.Series, or pandas.DataFrame.
+    
+    
+    
+    """
+    
     raise TypeError('Type not supported')
 
 @inverse_regex.register(bool)
 def _(x, **args):
+    """Boolean inputs are returned as-is without any processing"""
     return(x)
 
 @inverse_regex.register(int)
@@ -27,7 +77,7 @@ def _(x, **args):
 
 @inverse_regex.register(tuple)
 def _(x, **args):
-    return(tuple(inverse_regex(list(x), **args)))
+    return(tuple(inverse_regex(y, **args) for y in x))
 
 ## If the user doesn't have numpy installed they don't need methods for those types.
 try:
@@ -92,7 +142,7 @@ def _(x,
       combine_punctuation = False,
       combine_space = False,
       sep = '',
-      escape = False,
+      escape_punctuation = False,
       enclose = False):
     
     if numbers_to_keep is None:
@@ -110,6 +160,11 @@ def _(x,
     alnum = regex.compile('[[:alnum:]]')
     punct = regex.compile('[[:punct:]]')
     space = regex.compile('[[:space:]]')
+    
+    if not combine_punctuation and escape_punctuation:
+        iterator = punct.finditer(x)
+        for match in iterator:
+            out[match.span()[0]] = regex.escape(out[match.span()[0]])
     
     if combine_alphanumeric:
         iterator = alnum.finditer(x)
@@ -159,9 +214,6 @@ def _(x,
             rle[ii][1] = "+"
     
     joined = sep.join([i + j for i,j in rle])
-    
-    if escape:
-        joined = regex.escape(joined)
     
     if enclose:
         joined = '^' + joined + '$'
